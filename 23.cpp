@@ -17,11 +17,49 @@ void Token_Stream::putback(Token t){
 	buffer.push_back ( t );
 }
 
+void Token_Stream::setPriority(void){
+	std::vector<Token> withPrior;
+	Grammar::priority last = Grammar::priority::high;
+	while((char)last){
+		std::vector<char> kinds;	
+
+		for(auto x : Grammar::priority_vals)
+			if(x.prior==last) 
+				kinds.push_back(x.kind);
+/*
+		for(auto x : kinds){
+				std::cout << x << std::endl;
+				//std::cout << int(x.prior) << ":" << x.kind << std::endl;
+		}
+		std::cout << "~~~~~" << std::endl;
+*/	
+
+			for( auto it = std::begin(buffer); it != std::end(buffer); it++ ){
+				for(char lastKind=0;lastKind != kinds.size();lastKind++)
+					if( it->kind == kinds[ (int)lastKind ] )
+						for(int i = -1;i != 1; i++)
+						 if( (it+i)->kind  )
+						 {
+						  if( i < 0 && (it)->kind == 'n') continue;
+						  withPrior.push_back( *(it+i) );	
+						  //buffer.erase ( it+i );						
+						 }
+			}
+
+		last = (Grammar::priority)((char)last-1);
+	}
+	//withPrior.erase( std::end(withPrior) ); // from buggy version, not need
+	//for(auto x : withPrior)\
+		std::cout << x.val << ":" << x.kind << std::endl; // for debuging, not need
+	buffer = withPrior;
+}
+
 void Token_Stream::getline(void){
 	Token t;
 	while( (t = get()).kind != ';' )
 		putback(t.kind,t.val);
 	putback(';');
+	setPriority();
 }
 
 Token Token_Stream::get(void){
@@ -57,27 +95,20 @@ Token Token_Stream::get(void){
 }
 
 
-void parser::primary( double & res ){
-/*
-	Token t=last, t1;
+void parser::primary( double & res , std::vector<Token>::const_iterator& it, std::vector<Token>::const_iterator end  ){
 
-	while(t.kind == '*' || t.kind == '/'){
-		switch(t.kind){
+	for(it;it->kind == '*' || it->kind == '/';it++) {
+		switch( (*it).kind){
 			case '*':
-				t1=get_token();
-				res*=t1.val;
+				res*=(it+1)->val;
 				break;
 			case '/':
-				t1=get_token();
-				if(t1.val == 0 || res == 0)
+				if((it+1)->val == 0 || res == 0) 
 					throw( std::runtime_error( "Dividing on zero" ) );
-				res/=t1.val;
+				res/=(it+1)->val;
 				break;
-		}
-		t=get_token();
+			}
 	}
-	last=t;
-*/
 }
 
 
@@ -88,27 +119,23 @@ long long int parser::factorial(long long int to){
 
 double parser::expression(){
 	std::vector<Token> tokens = get_token();
-	/*static*/ double res=0;
-	auto it = tokens.begin();	
-	for(it;it != tokens.end();it++) {
+	/*static*/ double res=0;	
+	for(auto it = tokens.cbegin();it != tokens.cend();it++) {
 		//std::cout << t.val << ":" << t.kind << std::endl;
 		//std::cout << t2.val << ":" << t2.kind << std::endl;
 		switch( (*it).kind){
 			case '+':	
-
 				res += (it+1)->val;
 				break;			
 			case '-':
-				//if(!res)
 				res -= (it+1)->val;
 				break;
 			case '*':
 			case '/':
-				primary(res);
+				primary(res, it, tokens.cend());
 				continue;
 				break;
 			case '!':
-				//res += factorial(get_token().val);
 				res = factorial( (it+1)->val );
 				break;
 			case 'x':
