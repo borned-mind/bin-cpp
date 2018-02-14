@@ -1,31 +1,39 @@
 #include"23.hpp"
 #include<iostream>
-#include<vector>
+
 
 #define CINERR if(!std::cin) throw( std::runtime_error("ERROR: read lval with kind") );
 
 void Token_Stream::putback(char kind, double val){
-	buffer = {kind,val};
+	buffer.push_back ( Token{kind,val} );
 }
 void Token_Stream::putback(char kind){
-	buffer.kind=kind;
+	buffer.push_back ( Token{kind, 0} );
 }
 void Token_Stream::putback(double val){
-	buffer.val=val;
+	buffer.push_back ( Token{'n', val} );
 }
 void Token_Stream::putback(Token t){
-	buffer=t;
+	buffer.push_back ( t );
 }
+
+void Token_Stream::getline(void){
+	Token t;
+	while( (t = get()).kind != ';' )
+		putback(t.kind,t.val);
+	putback(';');
+}
+
 Token Token_Stream::get(void){
-	if(full)
-		return this->buffer;
+
 	char kind, tmp;
 	double val=0;
 	do{
 		 tmp = std::cin.peek();
 		 switch(tmp){
 			case '+': case '-':
-			case '*': case '/': 
+			case '*': case '/':
+			case '!': 
 			case ';': 
 				std::cin.get();
 				return Token( tmp , 0 );
@@ -49,7 +57,8 @@ Token Token_Stream::get(void){
 }
 
 
-void parser::primary(double & res, Token &last){
+void parser::primary( double & res ){
+/*
 	Token t=last, t1;
 
 	while(t.kind == '*' || t.kind == '/'){
@@ -68,37 +77,39 @@ void parser::primary(double & res, Token &last){
 		t=get_token();
 	}
 	last=t;
-
+*/
 }
 
 
-
+long long int parser::factorial(long long int to){
+	if(to == 0) return 1;
+	return to * factorial(to-1);
+}
 
 double parser::expression(){
-	Token t=get_token();
-	Token t2;
+	std::vector<Token> tokens = get_token();
 	/*static*/ double res=0;
-	bool isExpression=true;
-
-
-
-	while(isExpression){
+	auto it = tokens.begin();	
+	for(it;it != tokens.end();it++) {
 		//std::cout << t.val << ":" << t.kind << std::endl;
 		//std::cout << t2.val << ":" << t2.kind << std::endl;
-		switch(t.kind){
+		switch( (*it).kind){
 			case '+':	
-				t2 = get_token();						
-				res += t2.val;
+
+				res += (it+1)->val;
 				break;			
 			case '-':
 				//if(!res)
-				t2 = get_token();
-				res -= t2.val;
+				res -= (it+1)->val;
 				break;
 			case '*':
 			case '/':
-				primary(res, t);
+				primary(res);
 				continue;
+				break;
+			case '!':
+				//res += factorial(get_token().val);
+				res = factorial( (it+1)->val );
 				break;
 			case 'x':
 			case ';':
@@ -106,22 +117,20 @@ double parser::expression(){
 				break;
 			case 'n':
 				if(res == 0)
-					res = t.val;
+					res = it->val;
 				break;
-			default:
-			//	std::cin.putback(t.kind);
-			//	std::cin.putback(t.val);
-				isExpression=false;
+			default:	
 				break;
 		}
-		t=get_token();
+
 	}
 	return res;
 }
 
-Token parser::get_token(){
+std::vector<Token> parser::get_token(){
 	Token_Stream tmp;
-	return tmp.get();
+	tmp.getline();
+	return tmp.get_buffer();
 }
 
 
